@@ -55,17 +55,22 @@ jobs:
 
       - name: Rebuild ISO
         run: |
-          sudo mksquashfs chroot_dir iso_extract/casper/filesystem.squashfs -noappend -comp xz
+          # SWITCHED TO GZIP (Uses much less RAM than XZ)
+          sudo mksquashfs chroot_dir iso_extract/casper/filesystem.squashfs -noappend -comp gzip
           sudo rm -rf chroot_dir
           
+          # Check disk space to be sure
+          df -h
+          
           cd iso_extract
+          # Updated bootloader paths for Ubuntu 24.04
           sudo xorriso -as mkisofs \
             -r -V "Kubuntu-Surface" \
             -o ../Kubuntu-Surface-Ready.iso \
             -J -l -b boot/grub/i386-pc/eltorito_boot_catalog -c boot.catalog \
             -no-emul-boot -boot-load-size 4 -boot-info-table \
             -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot \
-            -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin .
+            -isohybrid-mbr /usr/lib/syslinux/mbr/isohdpfx.bin .
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4

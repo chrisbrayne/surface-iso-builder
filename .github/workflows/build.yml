@@ -7,6 +7,9 @@ jobs:
   build:
     runs-on: self-hosted
     steps:
+      - name: Sudo Warmup
+        run: sudo -v
+
       - name: Clean Previous Builds
         run: |
           sudo umount -l chroot_dir/dev chroot_dir/proc chroot_dir/sys || true
@@ -49,7 +52,7 @@ jobs:
       - name: Rebuild ISO
         run: |
           sudo rm -f iso_extract/casper/filesystem.squashfs
-          sudo mksquashfs chroot_dir iso_extract/casper/filesystem.squashfs -noappend -comp xz
+          sudo mksquashfs chroot_dir iso_extract/casper/filesystem.squashfs -noappend -comp gzip
           
           cd iso_extract
           sudo xorriso -as mkisofs \

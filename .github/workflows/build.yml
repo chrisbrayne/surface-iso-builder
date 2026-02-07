@@ -55,17 +55,29 @@ jobs:
           sudo mksquashfs chroot_dir iso_extract/casper/filesystem.squashfs -noappend -comp gzip
           
           cd iso_extract
+          # DYNAMICALLY FIND THE BOOT FILES
+          # We search for the files and strip the './' prefix for xorriso
+          BOOT_CAT=$(find . -name "boot.catalog" | sed 's|^\./||' | head -n 1)
+          ELTORITO=$(find . -name "*eltorito*" | sed 's|^\./||' | head -n 1)
+          EFI_IMG=$(find . -name "efi.img" | sed 's|^\./||' | head -n 1)
+          MBR_BIN=$(find /usr/lib -name "isohdpfx.bin" | head -n 1)
+
+          echo "Using Boot Catalog: $BOOT_CAT"
+          echo "Using Eltorito: $ELTORITO"
+          echo "Using EFI Image: $EFI_IMG"
+          echo "Using MBR Bin: $MBR_BIN"
+
           sudo xorriso -as mkisofs \
             -r -V "Kubuntu-Surface" \
             -o ../Kubuntu-Surface-Ready.iso \
             -J -l \
-            -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+            -isohybrid-mbr "$MBR_BIN" \
             -partition_offset 16 \
-            -c boot.catalog \
-            -b boot/grub/i386-pc/eltorito_boot_catalog \
+            -c "$BOOT_CAT" \
+            -b "$ELTORITO" \
             -no-emul-boot -boot-load-size 4 -boot-info-table \
             -eltorito-alt-boot \
-            -e EFI/boot/unicode.pf2 -no-emul-boot \
+            -e "$EFI_IMG" -no-emul-boot \
             .
 
       - name: Upload ISO

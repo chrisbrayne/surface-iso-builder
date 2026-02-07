@@ -7,6 +7,11 @@ jobs:
   build:
     runs-on: self-hosted
     steps:
+      - name: Clean Previous Builds
+        run: |
+          sudo umount -l chroot_dir/dev chroot_dir/proc chroot_dir/sys || true
+          sudo rm -rf iso_extract chroot_dir base.iso Kubuntu-Surface-Ready.iso
+
       - name: Install System Tools
         run: |
           sudo apt-get update
@@ -20,7 +25,7 @@ jobs:
         run: |
           mkdir -p iso_extract chroot_dir
           osirrox -indev base.iso -extract / iso_extract
-          sudo unsquashfs -d chroot_dir iso_extract/casper/filesystem.squashfs
+          sudo unsquashfs -no-xattrs -d chroot_dir iso_extract/casper/filesystem.squashfs
           
           sudo mount --bind /dev chroot_dir/dev
           sudo mount --bind /proc chroot_dir/proc
@@ -38,7 +43,7 @@ jobs:
           apt-get clean
           EOF
           
-          sudo umount chroot_dir/dev chroot_dir/proc chroot_dir/sys
+          sudo umount -l chroot_dir/dev chroot_dir/proc chroot_dir/sys
           sudo rm chroot_dir/etc/resolv.conf
 
       - name: Rebuild ISO
@@ -54,11 +59,6 @@ jobs:
             -no-emul-boot -boot-load-size 4 -boot-info-table \
             -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot \
             -isohybrid-mbr /usr/lib/syslinux/mbr/isohdpfx.bin .
-
-      - name: Cleanup
-        if: always()
-        run: |
-          sudo rm -rf iso_extract chroot_dir base.iso
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4

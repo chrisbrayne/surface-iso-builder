@@ -1,75 +1,59 @@
- name: Build Kubuntu Surface Edition
-    2 on:
-    3   workflow_dispatch:
-    4
-    5 jobs:
-    6   build:
-    7     runs-on: ubuntu-latest
-    8     steps:
-    9       - name: Install System Tools
-   10         run: |
-   11           sudo apt-get update
-   12           sudo apt-get install -y squashfs-tools xorriso wget mtools isolinux syslinux-common
-   13
-   14       - name: Download Kubuntu 24.04.1
-   15         run: |
-   16           # Downloading 24.04.1 as it is the current stable point release
-   17           wget https://cdimage.ubuntu.com/kubuntu/releases/24.04/release/kubuntu-24.04.1-desktop-amd64.iso -O base.iso
-   18
-   19       - name: Extract and Modify
-   20         run: |
-   21           mkdir -p iso_extract chroot_dir
-   22           # Extract ISO
-   23           osirrox -indev base.iso -extract / iso_extract
-   24           # Extract Filesystem
-   25           sudo unsquashfs -d chroot_dir iso_extract/casper/filesystem.squashfs
-   26
-   27           # Prepare Chroot
-   28           sudo mount --bind /dev chroot_dir/dev
-   29           sudo mount --bind /proc chroot_dir/proc
-   30           sudo mount --bind /sys chroot_dir/sys
-   31           sudo cp /etc/resolv.conf chroot_dir/etc/resolv.conf
-   32
-   33           # Run Commands inside the ISO environment
-   34           sudo chroot chroot_dir /bin/bash <<EOF
-   35           apt-get update
-   36           apt-get install -y curl gnupg lsb-release
-   37           # Add Surface Repo
-   38           curl -s https://raw.githubusercontent.com/linux-surface/linux-surface/master/pkg/keys/surface.asc | gpg --dearmor | t
-      /etc/apt/trusted.gpg.d/linux-surface.gpg
-   39           echo "deb [arch=amd64] https://pkg.surfacelinux.com/debian release main" | tee
-      /etc/apt/sources.list.d/linux-surface.list
-   40           apt-get update
-   41           # Install Surface Kernel and required hardware support
-   42           apt-get install -y linux-image-surface linux-headers-surface iptsd libwacom-surface surface-control
-   43           # Clean up
-   44           apt-get autoremove -y
-   45           apt-get clean
-   46           EOF
-   47
-   48           # Unmount
-   49           sudo umount chroot_dir/dev chroot_dir/proc chroot_dir/sys
-   50           sudo rm chroot_dir/etc/resolv.conf
-   51
-   52       - name: Rebuild ISO
-   53         run: |
-   54           # Re-compress the filesystem
-   55           sudo rm iso_extract/casper/filesystem.squashfs
-   56           sudo mksquashfs chroot_dir iso_extract/casper/filesystem.squashfs -noappend -comp xz
-   57
-   58           # Create the final bootable ISO
-   59           cd iso_extract
-   60           sudo xorriso -as mkisofs \
-   61             -r -V "Kubuntu-Surface" \
-   62             -o ../Kubuntu-Surface-24.04-Ready.iso \
-   63             -J -l -b boot/grub/i386-pc/eltorito_boot_catalog -c boot.catalog \
-   64             -no-emul-boot -boot-load-size 4 -boot-info-table \
-   65             -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot \
-   66             -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin .
-   67
-   68       - name: Upload Finished ISO
-   69         uses: actions/upload-artifact@v4
-   70         with:
-   71           name: Surface-ISO
-   72           path: Kubuntu-Surface-24.04-Ready.iso
-   73           compression-level: 0 # ISO is already compressed
+name: Build-Surface-ISO
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install System Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y squashfs-tools xorriso wget mtools isolinux syslinux-common
+
+      - name: Download Kubuntu
+        run: |
+          wget https://cdimage.ubuntu.com/kubuntu/releases/24.04/release/kubuntu-24.04.1-desktop-amd64.iso -O base.iso
+
+      - name: Extract and Modify
+        run: |
+          mkdir -p iso_extract chroot_dir
+          osirrox -indev base.iso -extract / iso_extract
+          sudo unsquashfs -d chroot_dir iso_extract/casper/filesystem.squashfs
+          sudo mount --bind /dev chroot_dir/dev
+          sudo mount --bind /proc chroot_dir/proc
+          sudo mount --bind /sys chroot_dir/sys
+          sudo cp /etc/resolv.conf chroot_dir/etc/resolv.conf
+          sudo chroot chroot_dir /bin/bash <<EOF
+          apt-get update
+          apt-get install -y curl gnupg lsb-release
+          curl -s https://raw.githubusercontent.com/linux-surface/linux-surface/master/pkg/keys/surface.asc | gpg --dearmor | tee /etc/apt/trusted.gpg.d/linux-surface.gpg
+          echo "deb [arch=amd64] https://pkg.surfacelinux.com/debian release main" | tee /etc/apt/sources.list.d/linux-surface.list
+          apt-get update
+          apt-get install --no-install-recommends -y linux-image-surface linux-headers-surface iptsd libwacom-surface surface-control
+          apt-get autoremove -y
+          apt-get clean
+          EOF
+          sudo umount chroot_dir/dev chroot_dir/proc chroot_dir/sys
+          sudo rm chroot_dir/etc/resolv.conf
+
+      - name: Rebuild ISO
+        run: |
+          sudo rm iso_extract/casper/filesystem.squashfs
+          sudo mksquashfs chroot_dir iso_extract/casper/filesystem.squashfs -noappend -comp xz
+          cd iso_extract
+          sudo xorriso -as mkisofs 
+            -r -V "Kubuntu-Surface" 
+            -o ../Kubuntu-Surface-Ready.iso 
+            -J -l -b boot/grub/i386-pc/eltorito_boot_catalog -c boot.catalog 
+            -no-emul-boot -boot-load-size 4 -boot-info-table 
+            -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot 
+            -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin .
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: Surface-ISO
+          path: Kubuntu-Surface-Ready.iso
+          compression-level: 0

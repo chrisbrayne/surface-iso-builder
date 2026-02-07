@@ -5,17 +5,8 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
-      - name: Maximize Disk Space
-        uses: easimon/maximize-build-space@master
-        with:
-          root-reserve-mb: 2048
-          swap-size-mb: 1024
-          remove-dotnet: 'true'
-          remove-android: 'true'
-          remove-haskell: 'true'
-
       - name: Install System Tools
         run: |
           sudo apt-get update
@@ -29,10 +20,7 @@ jobs:
         run: |
           mkdir -p iso_extract chroot_dir
           osirrox -indev base.iso -extract / iso_extract
-          rm base.iso
-          
           sudo unsquashfs -d chroot_dir iso_extract/casper/filesystem.squashfs
-          sudo rm iso_extract/casper/filesystem.squashfs
           
           sudo mount --bind /dev chroot_dir/dev
           sudo mount --bind /proc chroot_dir/proc
@@ -55,15 +43,10 @@ jobs:
 
       - name: Rebuild ISO
         run: |
-          # SWITCHED TO GZIP (Uses much less RAM than XZ)
-          sudo mksquashfs chroot_dir iso_extract/casper/filesystem.squashfs -noappend -comp gzip
-          sudo rm -rf chroot_dir
-          
-          # Check disk space to be sure
-          df -h
+          sudo rm -f iso_extract/casper/filesystem.squashfs
+          sudo mksquashfs chroot_dir iso_extract/casper/filesystem.squashfs -noappend -comp xz
           
           cd iso_extract
-          # Updated bootloader paths for Ubuntu 24.04
           sudo xorriso -as mkisofs \
             -r -V "Kubuntu-Surface" \
             -o ../Kubuntu-Surface-Ready.iso \
@@ -72,10 +55,14 @@ jobs:
             -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot \
             -isohybrid-mbr /usr/lib/syslinux/mbr/isohdpfx.bin .
 
+      - name: Cleanup
+        if: always()
+        run: |
+          sudo rm -rf iso_extract chroot_dir base.iso
+
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
           name: Surface-ISO
           path: Kubuntu-Surface-Ready.iso
           retention-days: 1
-          compression-level: 0

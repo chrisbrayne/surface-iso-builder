@@ -14,7 +14,8 @@ jobs:
 
       - name: Download Kubuntu
         run: |
-          wget https://cdimage.ubuntu.com/kubuntu/releases/24.04/release/kubuntu-24.04.1-desktop-amd64.iso -O base.iso
+          # Updated to 24.04.3 as it is the current version
+          wget https://cdimage.ubuntu.com/kubuntu/releases/24.04/release/kubuntu-24.04.3-desktop-amd64.iso -O base.iso
 
       - name: Extract and Modify
         run: |
@@ -43,12 +44,12 @@ jobs:
           sudo rm iso_extract/casper/filesystem.squashfs
           sudo mksquashfs chroot_dir iso_extract/casper/filesystem.squashfs -noappend -comp xz
           cd iso_extract
-          sudo xorriso -as mkisofs 
-            -r -V "Kubuntu-Surface" 
-            -o ../Kubuntu-Surface-Ready.iso 
-            -J -l -b boot/grub/i386-pc/eltorito_boot_catalog -c boot.catalog 
-            -no-emul-boot -boot-load-size 4 -boot-info-table 
-            -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot 
+          sudo xorriso -as mkisofs \
+            -r -V "Kubuntu-Surface" \
+            -o ../Kubuntu-Surface-Ready.iso \
+            -J -l -b boot/grub/i386-pc/eltorito_boot_catalog -c boot.catalog \
+            -no-emul-boot -boot-load-size 4 -boot-info-table \
+            -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot \
             -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin .
 
       - name: Upload ISO

@@ -7,6 +7,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Maximize Disk Space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 2048
+          swap-size-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+
       - name: Install System Tools
         run: |
           sudo apt-get update
@@ -20,11 +29,9 @@ jobs:
         run: |
           mkdir -p iso_extract chroot_dir
           osirrox -indev base.iso -extract / iso_extract
-          # Delete the base ISO immediately to free 4GB
           rm base.iso
           
           sudo unsquashfs -d chroot_dir iso_extract/casper/filesystem.squashfs
-          # Delete the old squashfs to free another 4GB
           sudo rm iso_extract/casper/filesystem.squashfs
           
           sudo mount --bind /dev chroot_dir/dev
@@ -48,9 +55,7 @@ jobs:
 
       - name: Rebuild ISO
         run: |
-          # Re-compress
           sudo mksquashfs chroot_dir iso_extract/casper/filesystem.squashfs -noappend -comp xz
-          # Delete the chroot folder to free 10GB+ before making the ISO
           sudo rm -rf chroot_dir
           
           cd iso_extract

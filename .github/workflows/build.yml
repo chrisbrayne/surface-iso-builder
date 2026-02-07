@@ -54,11 +54,31 @@ jobs:
           sudo rm -f iso_extract/casper/filesystem.squashfs
           sudo mksquashfs chroot_dir iso_extract/casper/filesystem.squashfs -noappend -comp gzip
           
-          sudo xorriso -indev base.iso \
-            -outdev ../Kubuntu-Surface-Ready.iso \
-            -map iso_extract / \
-            -boot_image any replay \
-            -volid "Kubuntu-Surface"
+          cd iso_extract
+          BOOT_CAT=$(find . -name "boot.catalog" | head -n 1 | sed 's|^\./||')
+          ELTORITO=$(find . -name "eltorito_boot_catalog" | head -n 1 | sed 's|^\./||')
+          EFI_IMG=$(find . -name "efi.img" | head -n 1 | sed 's|^\./||')
+          MBR_BIN=$(find /usr/lib -name "isohdpfx.bin" | head -n 1)
+
+          echo "Detected Boot Catalog: $BOOT_CAT"
+          echo "Detected ElTorito: $ELTORITO"
+          echo "Detected EFI Image: $EFI_IMG"
+          echo "Detected MBR: $MBR_BIN"
+
+          sudo xorriso -as mkisofs \
+            -r -V "Kubuntu-Surface" \
+            -o ../Kubuntu-Surface-Ready.iso \
+            -J -l \
+            -isohybrid-mbr "$MBR_BIN" \
+            -partition_offset 16 \
+            -c "$BOOT_CAT" \
+            -b "$ELTORITO" \
+            -no-emul-boot -boot-load-size 4 -boot-info-table \
+            -eltorito-alt-boot \
+            -e "$EFI_IMG" \
+            -no-emul-boot \
+            -isohybrid-gpt-basdat \
+            .
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4

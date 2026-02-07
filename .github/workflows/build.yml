@@ -14,18 +14,24 @@ jobs:
 
       - name: Download Kubuntu
         run: |
-          # Updated to 24.04.3 as it is the current version
           wget https://cdimage.ubuntu.com/kubuntu/releases/24.04/release/kubuntu-24.04.3-desktop-amd64.iso -O base.iso
 
       - name: Extract and Modify
         run: |
           mkdir -p iso_extract chroot_dir
           osirrox -indev base.iso -extract / iso_extract
+          # Delete the base ISO immediately to free 4GB
+          rm base.iso
+          
           sudo unsquashfs -d chroot_dir iso_extract/casper/filesystem.squashfs
+          # Delete the old squashfs to free another 4GB
+          sudo rm iso_extract/casper/filesystem.squashfs
+          
           sudo mount --bind /dev chroot_dir/dev
           sudo mount --bind /proc chroot_dir/proc
           sudo mount --bind /sys chroot_dir/sys
           sudo cp /etc/resolv.conf chroot_dir/etc/resolv.conf
+          
           sudo chroot chroot_dir /bin/bash <<EOF
           apt-get update
           apt-get install -y curl gnupg lsb-release
@@ -36,13 +42,17 @@ jobs:
           apt-get autoremove -y
           apt-get clean
           EOF
+          
           sudo umount chroot_dir/dev chroot_dir/proc chroot_dir/sys
           sudo rm chroot_dir/etc/resolv.conf
 
       - name: Rebuild ISO
         run: |
-          sudo rm iso_extract/casper/filesystem.squashfs
+          # Re-compress
           sudo mksquashfs chroot_dir iso_extract/casper/filesystem.squashfs -noappend -comp xz
+          # Delete the chroot folder to free 10GB+ before making the ISO
+          sudo rm -rf chroot_dir
+          
           cd iso_extract
           sudo xorriso -as mkisofs \
             -r -V "Kubuntu-Surface" \
@@ -57,4 +67,5 @@ jobs:
         with:
           name: Surface-ISO
           path: Kubuntu-Surface-Ready.iso
+          retention-days: 1
           compression-level: 0

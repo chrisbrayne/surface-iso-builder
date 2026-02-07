@@ -58,10 +58,15 @@ jobs:
           sudo xorriso -as mkisofs \
             -r -V "Kubuntu-Surface" \
             -o ../Kubuntu-Surface-Ready.iso \
-            -J -l -b boot/grub/i386-pc/eltorito_boot_catalog -c boot.catalog \
+            -J -l \
+            -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+            -partition_offset 16 \
+            -c boot.catalog \
+            -b boot/grub/i386-pc/eltorito_boot_catalog \
             -no-emul-boot -boot-load-size 4 -boot-info-table \
-            -eltorito-alt-boot -e boot/grub/efi.img -no-emul-boot \
-            -isohybrid-mbr /usr/lib/syslinux/mbr/isohdpfx.bin .
+            -eltorito-alt-boot \
+            -e EFI/boot/unicode.pf2 -no-emul-boot \
+            .
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
